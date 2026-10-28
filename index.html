@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Linear Search Explorer</title>
+<style>
+  :root {
+    --maroon: #6B1A31;
+    --orange: #FD6B0D;
+    --bg: #f6f4f1;
+    --panel: #ffffff;
+    --ink: #1f1a1c;
+    --muted: #6b6466;
+    --line: #e4dfdb;
+    --check: #FD6B0D;
+    --nomatch: #b9b2b0;
+    --match: #1f9d55;
+    --code-bg: #1e1b22;
+    --code-ink: #e8e3ea;
+    --hl: rgba(253,107,13,0.28);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: var(--bg); color: var(--ink); line-height: 1.45;
+  }
+  header {
+    background: var(--maroon); color: #fff; padding: 18px 24px;
+    border-bottom: 5px solid var(--orange);
+  }
+  header h1 { margin: 0; font-size: 1.5rem; letter-spacing: .3px; }
+  header p { margin: 4px 0 0; opacity: .85; font-size: .95rem; }
+  main { max-width: 1250px; margin: 0 auto; padding: 18px 16px 40px; }
+  .grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.04);
+  }
+  .card h2 {
+    margin: 0 0 12px; font-size: 1rem; text-transform: uppercase; letter-spacing: .8px;
+    color: var(--maroon);
+  }
+  .span2 { grid-column: 1 / -1; }
+
+  /* ---------- Setup ---------- */
+  .setup { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 700px) { .setup { grid-template-columns: 1fr; } }
+  label { font-weight: 600; font-size: .9rem; display: block; margin-bottom: 4px; }
+  input[type=text], textarea {
+    width: 100%; padding: 8px 10px; border: 1px solid #cfc8c4; border-radius: 8px;
+    font-size: .95rem; font-family: inherit; background: #fff; color: var(--ink);
+  }
+  textarea { height: 150px; resize: vertical; font-family: Consolas, monospace; font-size: .88rem; }
+  .hint { font-size: .8rem; color: var(--muted); margin-top: 4px; }
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .chip {
+    border: 1px solid var(--maroon); color: var(--maroon); background: #fff;
+    padding: 5px 10px; border-radius: 999px; font-size: .82rem; cursor: pointer;
+  }
+  .chip:hover { background: var(--maroon); color: #fff; }
+
+  button.btn {
+    border: none; border-radius: 8px; padding: 9px 14px; font-size: .95rem; font-weight: 600;
+    cursor: pointer; background: var(--maroon); color: #fff; transition: transform .05s, opacity .2s;
+  }
+  button.btn:active { transform: translateY(1px); }
+  button.btn.alt { background: #fff; color: var(--maroon); border: 1.5px solid var(--maroon); }
+  button.btn.orange { background: var(--orange); }
+  button.btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* ---------- Controls ---------- */
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .speed { display: flex; align-items: center; gap: 6px; margin-left: auto; font-size: .85rem; color: var(--muted); }
+  .progress { height: 6px; background: var(--line); border-radius: 3px; margin-top: 12px; overflow: hidden; }
+  .progress > div { height: 100%; width: 0; background: var(--orange); transition: width .2s; }
+  .kbd { font-size: .78rem; color: var(--muted); margin-top: 8px; }
+  kbd { background: #eee; border: 1px solid #ccc; border-radius: 4px; padding: 0 5px; font-size: .75rem; }
+
+  /* ---------- Shelf ---------- */
+  .shelf-wrap { overflow-x: auto; padding: 4px 2px 0; }
+  .shelf {
+    display: flex; gap: 10px; align-items: flex-end; min-height: 250px;
+    padding: 34px 12px 0; border-bottom: 14px solid #7a5232; border-radius: 0 0 4px 4px;
+    background: linear-gradient(#fbf8f4, #f1e9df); position: relative; width: max-content; min-width: 100%;
+  }
+  .book { display: flex; flex-direction: column; align-items: center; position: relative; }
+  .spine {
+    width: 58px; height: 190px; border-radius: 5px 5px 2px 2px; display: flex; align-items: center;
+    justify-content: center; writing-mode: vertical-rl; transform: rotate(180deg);
+    color: #fff; font-weight: 600; font-size: .85rem; padding: 8px 4px; text-align: center;
+    box-shadow: inset -5px 0 0 rgba(0,0,0,.15), 0 2px 4px rgba(0,0,0,.15);
+    transition: all .3s ease; overflow: hidden;
+  }
+  .book.checking .spine { outline: 4px solid var(--check); transform: rotate(180deg) translateY(14px); }
+  .book.nomatch .spine { filter: grayscale(1) opacity(.45); }
+  .book.match .spine { outline: 5px solid var(--match); transform: rotate(180deg) translateY(22px); }
+  .idx {
+    margin-top: 6px; font-family: Consolas, monospace; font-size: .8rem; color: #fff;
+    background: #7a5232; padding: 0 6px; border-radius: 4px; position: absolute; bottom: -18px;
+  }
+  .badge {
+    position: absolute; top: -30px; font-size: 1.15rem; font-weight: 700; opacity: 0; transition: opacity .2s;
+  }
+  .book.nomatch .badge { opacity: 1; color: #c0392b; }
+  .book.match .badge { opacity: 1; color: var(--match); }
+  .pointer {
+    position: absolute; top: 2px; font-family: Consolas, monospace; font-weight: 700; color: var(--orange);
+    font-size: .9rem; transition: left .3s ease; white-space: nowrap; pointer-events: none;
+  }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .8rem; color: var(--muted); margin-top: 28px; }
+  .legend span::before {
+    content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: -2px;
+  }
+  .lg-idle::before { background: #8a6d9e; }
+  .lg-check::before { background: #fff; outline: 3px solid var(--check); }
+  .lg-no::before { background: var(--nomatch); }
+  .lg-yes::before { background: #fff; outline: 3px solid var(--match); }
+
+  /* ---------- Explanation ---------- */
+  .explain {
+    background: #fff6ef; border-left: 5px solid var(--orange); padding: 12px 14px;
+    border-radius: 6px; font-size: 1rem; min-height: 64px; margin-top: 14px;
+  }
+  .explain b { color: var(--maroon); }
+
+  /* ---------- Code ---------- */
+  .code {
+    background: var(--code-bg); color: var(--code-ink); border-radius: 10px; padding: 10px 0;
+    font-family: Consolas, "Courier New", monospace; font-size: .86rem; overflow-x: auto;
+  }
+  .ln { display: flex; padding: 1px 12px 1px 0; white-space: pre; border-left: 4px solid transparent; transition: background .2s; }
+  .ln .no { width: 36px; text-align: right; padding-right: 12px; color: #6f6878; user-select: none; flex-shrink: 0; }
+  .ln.active { background: var(--hl); border-left-color: var(--orange); }
+  .kw { color: #ff9ac1; } .str { color: #a5e3a0; } .cm { color: #8b8394; font-style: italic; } .fn { color: #8fd3ff; } .num { color: #ffc66d; }
+
+  /* ---------- Variables / console ---------- */
+  .vars { width: 100%; border-collapse: collapse; font-family: Consolas, monospace; font-size: .9rem; }
+  .vars td { padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  .vars td:first-child { color: var(--maroon); font-weight: 700; width: 38%; }
+  .vars tr.changed td:last-child { background: #fff1e6; transition: background .3s; }
+  .console {
+    background: #111; color: #d7f7d0; font-family: Consolas, monospace; font-size: .86rem;
+    border-radius: 8px; padding: 10px 12px; min-height: 120px; max-height: 220px; overflow-y: auto; white-space: pre-wrap;
+  }
+  .console .prompt { color: #888; }
+  .stats { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+  .stat { flex: 1; min-width: 110px; background: #faf7f5; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; text-align: center; }
+  .stat .v { font-size: 1.5rem; font-weight: 700; color: var(--maroon); }
+  .stat .l { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+
+  /* ---------- Think ---------- */
+  .think { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+  .q { background: #faf7f5; border: 1px solid var(--line); border-radius: 8px; padding: 12px; font-size: .92rem; }
+  .q b { color: var(--maroon); }
+  details summary { cursor: pointer; color: var(--orange); font-weight: 600; margin-top: 6px; font-size: .88rem; }
+  details p { margin: 6px 0 0; }
+  .done-banner {
+    margin-top: 12px; padding: 10px 14px; border-radius: 8px; font-weight: 600; display: none;
+  }
+  .done-banner.found { display: block; background: #e7f6ee; color: #146c3b; border: 1px solid #a8dcbf; }
+  .done-banner.notfound { display: block; background: #fdecea; color: #922; border: 1px solid #f2b8b2; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📚 Linear Search Explorer</h1>
+  <p>Watch Python check every book on the shelf, one at a time, until it finds the one you want.</p>
+</header>
+
+<main>
+  <div class="grid">
+
+    <!-- SETUP -->
+    <section class="card span2">
+      <h2>1 · Set up the search</h2>
+      <div class="setup">
+        <div>
+          <label for="booksInput">Books on the shelf (one per line)</label>
+          <textarea id="booksInput"></textarea>
+          <div class="hint">Add, remove, or reorder books, then click <b>Apply</b>.</div>
+        </div>
+        <div>
+          <label for="targetInput">Target book to find</label>
+          <input type="text" id="targetInput" list="bookList" autocomplete="off">
+          <datalist id="bookList"></datalist>
+          <div class="hint">Matching is exact, just like Python's <code>==</code>. Capital letters and spaces matter!</div>
+          <div class="presets">
+            <span class="hint" style="width:100%;margin:0">Quick experiments:</span>
+            <button class="chip" data-preset="first">Best case (first book)</button>
+            <button class="chip" data-preset="middle">Middle book</button>
+            <button class="chip" data-preset="last">Last book</button>
+            <button class="chip" data-preset="missing">Not on shelf</button>
+            <button class="chip" data-preset="case">Wrong capitalization</button>
+            <button class="chip" data-preset="shuffle">Shuffle shelf</button>
+            <button class="chip" data-preset="reset">Original example</button>
+          </div>
+          <div style="margin-top:14px">
+            <button class="btn orange" id="applyBtn">Apply &amp; restart</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SHELF + CONTROLS -->
+    <section class="card span2">
+      <h2>2 · Run it</h2>
+      <div class="controls">
+        <button class="btn alt" id="resetBtn" title="Reset (R)">⟲ Reset</button>
+        <button class="btn alt" id="backBtn" title="Step back (←)">◀ Back</button>
+        <button class="btn" id="playBtn" title="Play / Pause (Space)">▶ Play</button>
+        <button class="btn alt" id="stepBtn" title="Step forward (→)">Step ▶</button>
+        <div class="speed">
+          <span>Slow</span>
+          <input type="range" id="speed" min="150" max="1800" step="50" value="900" style="direction:rtl">
+          <span>Fast</span>
+        </div>
+      </div>
+      <div class="progress"><div id="progressBar"></div></div>
+      <div class="kbd">Keyboard: <kbd>Space</kbd> play/pause · <kbd>→</kbd> step · <kbd>←</kbd> back · <kbd>R</kbd> reset</div>
+
+      <div class="shelf-wrap">
+        <div class="shelf" id="shelf"></div>
+      </div>
+      <div class="legend">
+        <span class="lg-idle">Not checked yet</span>
+        <span class="lg-check">Checking now (arr[i])</span>
+        <span class="lg-no">Checked, not a match ✗</span>
+        <span class="lg-yes">Match found ✓</span>
+      </div>
+      <div class="explain" id="explain"></div>
+      <div class="done-banner" id="doneBanner"></div>
+    </section>
+
+    <!-- CODE -->
+    <section class="card">
+      <h2>3 · The code (current line highlighted)</h2>
+      <div class="code" id="code"></div>
+    </section>
+
+    <!-- STATE -->
+    <section class="card">
+      <h2>4 · What Python is tracking</h2>
+      <table class="vars" id="vars"></table>
+      <div class="stats">
+        <div class="stat"><div class="v" id="statComp">0</div><div class="l">Comparisons</div></div>
+        <div class="stat"><div class="v" id="statN">0</div><div class="l">Books (n)</div></div>
+        <div class="stat"><div class="v" id="statPct">0%</div><div class="l">Shelf searched</div></div>
+      </div>
+      <h2 style="margin-top:16px">Output</h2>
+      <div class="console" id="console"></div>
+    </section>
+
+    <!-- THINK -->
+    <section class="card span2">
+      <h2>5 · Think about it</h2>
+      <div class="think">
+        <div class="q"><b>Best case.</b> Which position makes linear search finish fastest? How many comparisons?
+          <details><summary>Show answer</summary><p>The target is at index 0 → only <b>1</b> comparison. Best case is <b>O(1)</b>.</p></details></div>
+        <div class="q"><b>Worst case.</b> Try "Last book" and "Not on shelf". How many comparisons does each take for n books?
+          <details><summary>Show answer</summary><p>Both need <b>n</b> comparisons: every book gets checked. Worst case is <b>O(n)</b>.</p></details></div>
+        <div class="q"><b>Pattern.</b> If the target is at index <code>k</code>, how many comparisons happen?
+          <details><summary>Show answer</summary><p><b>k + 1</b>. Indices start at 0, so the book at index 3 is the 4th one checked.</p></details></div>
+        <div class="q"><b>Sorted?</b> This shelf happens to be alphabetical. Does linear search use that fact?
+          <details><summary>Show answer</summary><p>No. Linear search works on <b>unsorted</b> lists too (try Shuffle). Binary search is what takes advantage of sorted order.</p></details></div>
+        <div class="q"><b>Why -1?</b> Why does the function return <code>-1</code> when the book isn't found?
+          <details><summary>Show answer</summary><p>-1 can never be a valid list index from <code>range(len(arr))</code>, so it safely means "not found".</p></details></div>
+        <div class="q"><b>Exactness.</b> Search for "data structures" (lowercase). What happens and why?
+          <details><summary>Show answer</summary><p>Not found: <code>"data structures" == "Data Structures"</code> is <b>False</b> because string comparison is case-sensitive.</p></details></div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+(function () {
+  const DEFAULT_BOOKS = ["Algorithms", "Artificial Intelligence", "Clean Code", "Data Structures",
+                         "Deep Learning", "Machine Learning", "Python Programming"];
+  const DEFAULT_TARGET = "Data Structures";
+  const SPINE_COLORS = ["#6B1A31", "#2c5d8a", "#8a6d9e", "#2f7d6d", "#a0522d", "#4a4e8f",
+                        "#b03a5b", "#3f6e2f", "#7a4b8c", "#c06a1a", "#1f6f8b", "#8b3a3a"];
+
+  let books = DEFAULT_BOOKS.slice();
+  let target = DEFAULT_TARGET;
+  let trace = [];
+  let step = 0;
+  let timer = null;
+
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const py = s => '"' + s + '"';
+
+  // ---------- Code listing ----------
+  function codeLines() {
+    return [
+      'books = [...]  # ' + books.length + ' books (see the shelf above)',
+      'target = ' + py(target),
+      '',
+      'def linear_search(arr, key):',
+      '    for i in range(len(arr)):',
+      '        print(f"Checking: {arr[i]}")   # step-by-step view',
+      '        if arr[i] == key:',
+      '            return i                   # return index if found',
+      '    return -1                          # return -1 if not found',
+      '',
+      'result = linear_search(books, target)',
+      '',
+      'if result != -1:',
+      '    print(f"\\n\'{target}\' found at bookshelf number {result}")',
+      'else:',
+      '    print(f"\\n\'{target}\' not found in the bookshelf")'
+    ];
+  }
+
+  function highlight(line) {
+    const parts = line.split(/(f?"(?:[^"\\]|\\.)*"|#.*$)/);
+    return parts.map(p => {
+      if (!p) return "";
+      if (p.startsWith("#")) return '<span class="cm">' + esc(p) + '</span>';
+      if (/^f?"/.test(p)) return '<span class="str">' + esc(p) + '</span>';
+      return esc(p)
+        .replace(/\b(def|for|in|if|else|return|print|range|len)\b/g, m =>
+          ["print", "range", "len"].includes(m) ? '<span class="fn">' + m + '</span>' : '<span class="kw">' + m + '</span>')
+        .replace(/(-?\b\d+\b)/g, '<span class="num">$1</span>');
+    }).join("");
+  }
+
+  function renderCode(active) {
+    $("code").innerHTML = codeLines().map((l, i) =>
+      '<div class="ln' + (i + 1 === active ? ' active' : '') + '"><span class="no">' + (i + 1) +
+      '</span><span>' + (highlight(l) || " ") + '</span></div>').join("");
+    const a = $("code").querySelector(".active");
+    if (a) a.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
+
+  // ---------- Build the execution trace ----------
+  function buildTrace() {
+    const n = books.length;
+    const status = Array(n).fill("idle");
+    const out = [];
+    let comps = 0, i = null, cur = null, result = undefined, cmp = null;
+    const t = [];
+    const snap = (line, msg, extra = {}) => t.push({
+      line, msg, status: status.slice(), out: out.slice(), comps, i, cur, result, cmp,
+      done: false, ...extra
+    });
+
+    snap(1, "We start with a shelf of <b>" + n + "</b> books and a target: <b>" + esc(py(target)) + "</b>. Press <b>Step</b> or <b>Play</b>.");
+    snap(11, "Python calls <b>linear_search(books, target)</b>. Inside the function, <code>arr</code> is the shelf and <code>key</code> is " + esc(py(target)) + ".");
+
+    let found = false;
+    for (let k = 0; k < n; k++) {
+      i = k; cur = k; cmp = null;
+      snap(5, "Loop: <b>i = " + k + "</b>" + (k === 0 ? " (lists start at index 0)." : ". Move to the next book on the shelf."));
+      status[k] = "checking";
+      out.push("Checking: " + books[k]);
+      snap(6, "Print the book at <b>arr[" + k + "]</b>: " + esc(py(books[k])) + ".");
+      comps++;
+      const eq = books[k] === target;
+      cmp = esc(py(books[k])) + " == " + esc(py(target)) + " → " + (eq ? "True" : "False");
+      status[k] = eq ? "match" : "nomatch";
+      snap(7, "Compare: <code>" + cmp + "</code>. " + (eq
+        ? "<b>They match!</b>"
+        : "Not a match, so skip the <code>return</code> and keep looping."));
+      if (eq) {
+        result = k; found = true;
+        snap(8, "Return <b>" + k + "</b> immediately. The loop stops, and the remaining " +
+          (n - k - 1) + " book" + (n - k - 1 === 1 ? " is" : "s are") + " never checked.");
+        break;
+      }
+    }
+    if (!found) {
+      i = n === 0 ? null : n - 1; cur = null; cmp = null; result = -1;
+      snap(9, "The loop checked all <b>" + n + "</b> books without a match, so the function returns <b>-1</b>.");
+    }
+    cur = found ? result : null;
+    snap(11, "Back outside the function: <code>result = " + result + "</code>.");
+    snap(13, "Check <code>result != -1</code> → <b>" + (result !== -1 ? "True" : "False") + "</b>.");
+    out.push("");
+    if (found) {
+      out.push("'" + target + "' found at bookshelf number " + result);
+      snap(14, "Print the success message. Total comparisons: <b>" + comps + "</b> out of " + n + " books.", { done: "found" });
+    } else {
+      out.push("'" + target + "' not found in the bookshelf");
+      snap(16, "Print the not-found message. Total comparisons: <b>" + comps + "</b> (every book, the worst case).", { done: "notfound" });
+    }
+    return t;
+  }
+
+  // ---------- Rendering ----------
+  function renderShelf(s) {
+    const shelf = $("shelf");
+    shelf.innerHTML = books.map((b, k) =>
+      '<div class="book ' + s.status[k] + '" data-k="' + k + '">' +
+        '<div class="badge">' + (s.status[k] === "match" ? "✓" : "✗") + '</div>' +
+        '<div class="spine" style="background:' + SPINE_COLORS[k % SPINE_COLORS.length] + '">' + esc(b) + '</div>' +
+        '<div class="idx">[' + k + ']</div>' +
+      '</div>').join("") + '<div class="pointer" id="pointer"></div>';
+    const p = $("pointer");
+    if (s.cur !== null && s.cur !== undefined && books.length) {
+      const el = shelf.querySelector('[data-k="' + s.cur + '"]');
+      p.textContent = "▼ i = " + s.cur;
+      p.style.left = (el.offsetLeft + 4) + "px";
+      p.style.display = "block";
+      el.scrollIntoView({ block: "nearest", inline: "nearest" });
+    } else p.style.display = "none";
+  }
+
+  let prevVars = {};
+  function renderVars(s) {
+    const rows = [
+      ["key", esc(py(target))],
+      ["len(arr)", books.length],
+      ["i", s.i === null ? "—" : s.i],
+      ["arr[i]", s.cur === null || s.cur === undefined ? "—" : esc(py(books[s.cur]))],
+      ["arr[i] == key", s.cmp ? s.cmp.split("→ ")[1] : "—"],
+      ["result", s.result === undefined ? "— (not set yet)" : s.result]
+    ];
+    $("vars").innerHTML = rows.map(([k, v]) =>
+      '<tr class="' + (prevVars[k] !== undefined && prevVars[k] !== String(v) ? "changed" : "") + '"><td>' + k + '</td><td>' + v + '</td></tr>').join("");
+    prevVars = Object.fromEntries(rows.map(([k, v]) => [k, String(v)]));
+
+    $("statComp").textContent = s.comps;
+    $("statN").textContent = books.length;
+    $("statPct").textContent = books.length ? Math.round(100 * s.comps / books.length) + "%" : "0%";
+    $("console").innerHTML = '<span class="prompt">$ python linear_search.py</span>\n' + s.out.map(esc).join("\n");
+    $("console").scrollTop = $("console").scrollHeight;
+  }
+
+  function render() {
+    const s = trace[step];
+    renderShelf(s);
+    renderCode(s.line);
+    renderVars(s);
+    $("explain").innerHTML = "<b>Step " + (step + 1) + " of " + trace.length + ":</b> " + s.msg;
+    $("progressBar").style.width = (100 * step / (trace.length - 1)) + "%";
+    const banner = $("doneBanner");
+    banner.className = "done-banner" + (s.done ? " " + s.done : "");
+    banner.textContent = s.done === "found"
+      ? "✓ Found \"" + target + "\" at index " + trace[step].result + " after " + s.comps + " comparison" + (s.comps === 1 ? "" : "s") + "."
+      : s.done === "notfound" ? "✗ \"" + target + "\" is not on the shelf. All " + s.comps + " books were checked." : "";
+    $("backBtn").disabled = step === 0;
+    $("stepBtn").disabled = step === trace.length - 1;
+  }
+
+  // ---------- Playback ----------
+  function pause() { clearInterval(timer); timer = null; $("playBtn").textContent = "▶ Play"; }
+  function play() {
+    if (step >= trace.length - 1) { step = 0; render(); }
+    $("playBtn").textContent = "⏸ Pause";
+    timer = setInterval(() => {
+      if (step < trace.length - 1) { step++; render(); } else pause();
+    }, +$("speed").value);
+  }
+  function restart() {
+    pause(); prevVars = {};
+    trace = buildTrace(); step = 0; render();
+  }
+
+  // ---------- Setup inputs ----------
+  function syncInputs() {
+    $("booksInput").value = books.join("\n");
+    $("targetInput").value = target;
+    $("bookList").innerHTML = books.map(b => '<option value="' + esc(b) + '">').join("");
+  }
+  function applyInputs() {
+    books = $("booksInput").value.split("\n").map(s => s.trim()).filter(Boolean);
+    if (!books.length) books = DEFAULT_BOOKS.slice();
+    target = $("targetInput").value.trim();
+    syncInputs(); restart();
+  }
+
+  $("applyBtn").onclick = applyInputs;
+  $("targetInput").addEventListener("keydown", e => { if (e.key === "Enter") applyInputs(); });
+  document.querySelectorAll("[data-preset]").forEach(btn => btn.onclick = () => {
+    books = $("booksInput").value.split("\n").map(s => s.trim()).filter(Boolean);
+    if (!books.length) books = DEFAULT_BOOKS.slice();
+    const p = btn.dataset.preset;
+    if (p === "first") target = books[0];
+    if (p === "middle") target = books[Math.floor((books.length - 1) / 2)];
+    if (p === "last") target = books[books.length - 1];
+    if (p === "missing") target = "Computer Networks";
+    if (p === "case") target = (books.includes(DEFAULT_TARGET) ? DEFAULT_TARGET : books[0]).toLowerCase();
+    if (p === "shuffle") {
+      for (let k = books.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [books[k], books[j]] = [books[j], books[k]]; }
+      target = $("targetInput").value.trim();
+    }
+    if (p === "reset") { books = DEFAULT_BOOKS.slice(); target = DEFAULT_TARGET; }
+    syncInputs(); restart();
+  });
+
+  $("playBtn").onclick = () => timer ? pause() : play();
+  $("stepBtn").onclick = () => { pause(); if (step < trace.length - 1) { step++; render(); } };
+  $("backBtn").onclick = () => { pause(); if (step > 0) { step--; render(); } };
+  $("resetBtn").onclick = () => { pause(); step = 0; prevVars = {}; render(); };
+  $("speed").oninput = () => { if (timer) { pause(); play(); } };
+
+  document.addEventListener("keydown", e => {
+    if (["INPUT", "TEXTAREA"].includes(e.target.tagName)) return;
+    if (e.code === "Space") { e.preventDefault(); $("playBtn").click(); }
+    else if (e.key === "ArrowRight") $("stepBtn").click();
+    else if (e.key === "ArrowLeft") $("backBtn").click();
+    else if (e.key.toLowerCase() === "r") $("resetBtn").click();
+  });
+
+  syncInputs();
+  restart();
+})();
+</script>
+</body>
+</html>
